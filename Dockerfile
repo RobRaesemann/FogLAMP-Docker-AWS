@@ -36,9 +36,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     sqlite3 \
     uuid-dev \
 && apt-get clean \
-&& rm -rf /var/lib/apt/lists/*
+&& rm -rf /var/lib/apt/lists/* \
+&& pip3 install kafka-python asyncio
 
-# Clone FogLAMP from github repository, checkout v1.5.0, make and install FogLAMP
+# Clone FogLAMP from github repository, checkout v1.5.1, make and install FogLAMP
 RUN mkdir /foglamp 
 WORKDIR /foglamp
 RUN git clone https://github.com/foglamp/FogLAMP.git /foglamp \ 
@@ -56,6 +57,7 @@ RUN git clone https://github.com/edenhill/librdkafka.git /librdkafka \
 && make \
 && make install
 
+# Make the Kafka North Plugin and install in FogLAMP
 RUN git clone https://github.com/foglamp/foglamp-north-kafka.git /kafka_north
 WORKDIR /kafka_north
 RUN mkdir build \
@@ -68,16 +70,16 @@ RUN mkdir build \
 && chmod 644 libKafka.so \
 && ln -s libKafka.so libKafka.so.1 \
 && ls -al /usr/local/foglamp/plugins/north/kafka
-
+ 
 
 # Install plugins
 RUN mkdir -p /usr/local/foglamp/python/foglamp/plugins/south/http_south
 COPY plugins/south/http /usr/local/foglamp/python/foglamp/plugins/south/http_south
 
-# RUN mkdir -p /usr/local/foglamp/plugins/north/kafka
-# COPY plugins/north/kafka /usr/local/foglamp/plugins/north/kafka
+RUN mkdir -p /usr/local/foglamp/python/foglamp/plugins/north/kafka_north
+COPY plugins/north/kafka_north /usr/local/foglamp/python/foglamp/plugins/north/kafka_north
 
-# Scritp used to start foglamp
+# Script used to start foglamp
 WORKDIR /usr/local/foglamp
 COPY foglamp.sh .
 
@@ -87,11 +89,10 @@ ENV FOGLAMP_ROOT=/usr/local/foglamp
 VOLUME /usr/local/foglamp/data
 
 # 8081 FogLAMP API port
-# 80 FogLAMP ping
 # 1995 FogLAMP API port using TLS
 # 6683 HTTP South Plugin
 # 6684 HTTP South Plugin using TLS
-EXPOSE 8081 80 1995 6683 6684
+EXPOSE 8081 1995 6683 6684
 
 # start rsyslog, FogLAMP, and tail syslog
 CMD ["bash", "/usr/local/foglamp/foglamp.sh"]
